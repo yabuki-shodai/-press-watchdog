@@ -4,7 +4,7 @@ import json
 import os
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
@@ -22,6 +22,7 @@ TIMEZONE = timezone(timedelta(hours=9))
 USER_AGENT = "press-watchdog/0.1 (+https://github.com/yabuki-shodai/-press-watchdog)"
 REQUEST_TIMEOUT = 20
 MAX_ITEMS_PER_SOURCE = 30
+MAX_ARTICLE_AGE_DAYS = int(os.environ.get("MAX_ARTICLE_AGE_DAYS", "7"))
 README_START = "<!-- press-watchdog:today:start -->"
 README_END = "<!-- press-watchdog:today:end -->"
 
@@ -48,10 +49,9 @@ EXCLUDED_PATH_PARTS = (
     "/tag/", "/tags/", "/category/", "/categories/", "/page/",
 )
 DATE_PATTERNS = (
-    re.compile(r"/20\d{2}[/-]?\d{2}[/-]?\d{2}(?:\D|$)"),
-    re.compile(r"/20\d{6}(?:\D|$)"),
-    re.compile(r"\b20\d{2}[./-]\d{1,2}[./-]\d{1,2}\b"),
-    re.compile(r"\b20\d{2}\s*/\s*\d{1,2}\s*/\s*\d{1,2}\b"),
+    re.compile(r"(?P<year>20\d{2})[./-](?P<month>\d{1,2})[./-](?P<day>\d{1,2})"),
+    re.compile(r"(?P<year>20\d{2})\s*/\s*(?P<month>\d{1,2})\s*/\s*(?P<day>\d{1,2})"),
+    re.compile(r"(?P<year>20\d{2})(?P<month>\d{2})(?P<day>\d{2})"),
 )
 
 
@@ -62,6 +62,7 @@ class LinkItem:
     title: str
     url: str
     source_url: str
+    published_date: date | None = None
 
 
 def load_config() -> dict[str, Any]:
@@ -138,8 +139,28 @@ def same_site_or_subdomain(candidate_url: str, source_url: str) -> bool:
     return candidate_host == source_host or candidate_host.endswith(f".{source_host}") or source_host.endswith(f".{candidate_host}")
 
 
-def has_date_signal(url: str, title: str) -> bool:
-    return any(pattern.search(f"{url} {title}") for pattern in DATE_PATTERNS)
+def extract_published_date(url: str, title: str) -> date | None:
+    target = f"{url} {title}"
+    for pattern in DATE_PATTERNS:
+        match = pattern.search(target)
+        if not match:
+            continue
+        try:
+            return date(
+                int(match.group("year")),
+                int(match.group("month")),
+                int(match.group("day")),
+            )
+        except ValueError:
+            continue
+    return None
+
+
+def is_recent_article(published_date: date | None, today: date) -> bool:
+    if published_date is None:
+        return False
+    oldest = today - timedelta(days=MAX_ARTICLE_AGE_DAYS)
+    return oldest <= published_date <= today
 
 
 def has_article_keyword(url: str, title: str) -> bool:
@@ -166,7 +187,7 @@ def is_probably_article(url: str, title: str, source_url: str) -> bool:
         return False
     if len(title) < 6 or is_navigation_link(url, title):
         return False
-    if has_date_signal(url, title):
+    if extract_published_date(url, title) is not None:
         return True
     path = parsed.path.lower()
     if any(part in path for part in ("/newsview/", "/news/", "/info/", "/announcement/")):
@@ -193,7 +214,7 @@ def fetch_html(url: str) -> str | None:
     return response.text
 
 
-def extract_links(exchange: dict[str, Any], source_url: str) -> list[LinkItem]:
+def extract_links(exchange: dict[str, Any], source_url: str, today: date) -> list[LinkItem]:
     html = fetch_html(source_url)
     if html is None:
         return []
@@ -209,18 +230,21 @@ def extract_links(exchange: dict[str, Any], source_url: str) -> list[LinkItem]:
         canonical_url = canonicalize_url(absolute_url)
         if canonical_url in seen_urls or not is_probably_article(absolute_url, title, source_url):
             continue
+        published_date = extract_published_date(absolute_url, title)
+        if not is_recent_article(published_date, today):
+            continue
         seen_urls.add(canonical_url)
-        items.append(LinkItem(str(exchange["id"]), str(exchange["name"]), title, canonical_url, source_url))
+        items.append(LinkItem(str(exchange["id"]), str(exchange["name"]), title, canonical_url, source_url, published_date))
     return items[:MAX_ITEMS_PER_SOURCE]
 
 
-def collect_links(config: dict[str, Any]) -> list[LinkItem]:
+def collect_links(config: dict[str, Any], today: date) -> list[LinkItem]:
     collected: list[LinkItem] = []
     for exchange in config.get("exchanges", []):
         if not exchange.get("enabled", True):
             continue
         for source_url in exchange.get("press_urls", []) or []:
-            collected.extend(extract_links(exchange, source_url))
+            collected.extend(extract_links(exchange, source_url, today))
     return deduplicate_links(collected)
 
 
@@ -230,18 +254,15 @@ def generate_ai_summary(new_items: list[LinkItem], is_initial_run: bool) -> str 
     if not GITHUB_TOKEN:
         print("[warn] AI_SUMMARY_ENABLED is true but GITHUB_TOKEN is not available")
         return None
-
     input_lines = [f"- {item.exchange_name}: {item.title} ({item.url})" for item in new_items[:50]]
-    prompt = "\n".join(
-        [
-            "以下は暗号資産交換業者のお知らせ・プレスリリースの新着一覧です。",
-            "重要度の高い順に、重複を避けて日本語で簡潔に要約してください。",
-            "出力はMarkdownで、最大5件の箇条書きにしてください。",
-            "価格予測や投資助言は書かないでください。",
-            "",
-            *input_lines,
-        ]
-    )
+    prompt = "\n".join([
+        "以下は暗号資産交換業者のお知らせ・プレスリリースの新着一覧です。",
+        "重要度の高い順に、重複を避けて日本語で簡潔に要約してください。",
+        "出力はMarkdownで、最大5件の箇条書きにしてください。",
+        "価格予測や投資助言は書かないでください。",
+        "",
+        *input_lines,
+    ])
     try:
         response = requests.post(
             GITHUB_MODELS_API_URL,
@@ -258,9 +279,14 @@ def generate_ai_summary(new_items: list[LinkItem], is_initial_run: bool) -> str 
         )
         response.raise_for_status()
         return response.json()["choices"][0]["message"]["content"].strip()
-    except Exception as exc:  # keep the watcher alive if AI fails
+    except Exception as exc:
         print(f"[warn] failed to generate AI summary with GitHub Models: {exc}")
         return None
+
+
+def build_item_line(item: LinkItem) -> str:
+    prefix = f"{item.published_date.isoformat()} " if item.published_date else ""
+    return f"- [{prefix}{item.title}]({item.url})"
 
 
 def build_report(date_text: str, new_items: list[LinkItem], all_count: int, is_initial_run: bool, ai_summary: str | None) -> str:
@@ -269,24 +295,25 @@ def build_report(date_text: str, new_items: list[LinkItem], all_count: int, is_i
         "",
         f"- Initial baseline: {'yes' if is_initial_run else 'no'}",
         f"- New items: {0 if is_initial_run else len(new_items)}",
-        f"- Collected links: {all_count}",
+        f"- Collected recent links: {all_count}",
+        f"- Max article age days: {MAX_ARTICLE_AGE_DAYS}",
         f"- AI summary: {'enabled' if AI_SUMMARY_ENABLED else 'disabled'}",
         "",
     ]
     if ai_summary:
         lines.extend(["## AI Summary", "", ai_summary, ""])
     if is_initial_run:
-        lines.extend(["Initial baseline created. Existing links were saved to data/seen.json and are not reported as new items.", ""])
+        lines.extend(["Initial baseline created. Existing recent links were saved to data/seen.json and are not reported as new items.", ""])
         return "\n".join(lines)
     if not new_items:
-        lines.extend(["No new press release links detected.", ""])
+        lines.extend(["No new recent press release links detected.", ""])
         return "\n".join(lines)
     current_exchange = None
     for item in new_items:
         if item.exchange_name != current_exchange:
             current_exchange = item.exchange_name
             lines.extend(["", f"## {current_exchange}", ""])
-        lines.append(f"- [{item.title}]({item.url})")
+        lines.append(build_item_line(item))
         lines.append(f"  - source: {item.source_url}")
     lines.append("")
     return "\n".join(lines)
@@ -300,21 +327,23 @@ def build_summary(date_text: str, new_items: list[LinkItem], all_count: int, is_
         f"- Report: [{report_path}]({report_path})",
         f"- Initial baseline: {'yes' if is_initial_run else 'no'}",
         f"- New items: {0 if is_initial_run else len(new_items)}",
-        f"- Collected links: {all_count}",
+        f"- Collected recent links: {all_count}",
+        f"- Max article age days: {MAX_ARTICLE_AGE_DAYS}",
         f"- AI summary: {'enabled' if AI_SUMMARY_ENABLED else 'disabled'}",
         "",
     ]
     if ai_summary:
         lines.extend(["## AI Summary", "", ai_summary, ""])
     if is_initial_run:
-        lines.extend(["Initial baseline created. Existing links are not shown as new items.", ""])
+        lines.extend(["Initial baseline created. Existing recent links are not shown as new items.", ""])
         return "\n".join(lines)
     if not new_items:
-        lines.extend(["No new press release links detected.", ""])
+        lines.extend(["No new recent press release links detected.", ""])
         return "\n".join(lines)
     lines.extend(["## New items", ""])
     for item in new_items[:20]:
-        lines.append(f"- **{item.exchange_name}**: [{item.title}]({item.url})")
+        date_part = f"{item.published_date.isoformat()} " if item.published_date else ""
+        lines.append(f"- **{item.exchange_name}**: [{date_part}{item.title}]({item.url})")
     if len(new_items) > 20:
         lines.append(f"- ...and {len(new_items) - 20} more")
     lines.append("")
@@ -345,12 +374,12 @@ def update_readme_today_link(date_text: str) -> None:
 
 def main() -> None:
     now = datetime.now(TIMEZONE)
+    today = now.date()
     date_text = now.strftime("%Y-%m-%d")
     config = load_config()
     seen, is_initial_run = load_seen()
     seen_urls: dict[str, str] = seen.setdefault("seen_urls", {})
-
-    all_items = collect_links(config)
+    all_items = collect_links(config, today)
     new_items: list[LinkItem] = []
     for item in all_items:
         seen_key = canonicalize_url(item.url)
@@ -358,24 +387,20 @@ def main() -> None:
             new_items.append(item)
         seen_urls[seen_key] = now.isoformat()
     new_items = deduplicate_links(new_items)
-
     ai_summary = generate_ai_summary(new_items, is_initial_run)
     seen["updated_at"] = now.isoformat()
     seen["source"] = "scripts/watch_press_releases.py"
     seen["baseline_created_at"] = seen.get("baseline_created_at") or (now.isoformat() if is_initial_run else None)
+    seen["max_article_age_days"] = MAX_ARTICLE_AGE_DAYS
     save_seen(seen)
-
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
-    (DOCS_DIR / f"{date_text}.md").write_text(
-        build_report(date_text, new_items, len(all_items), is_initial_run, ai_summary),
-        encoding="utf-8",
-    )
+    (DOCS_DIR / f"{date_text}.md").write_text(build_report(date_text, new_items, len(all_items), is_initial_run, ai_summary), encoding="utf-8")
     write_github_step_summary(build_summary(date_text, new_items, len(all_items), is_initial_run, ai_summary))
     update_readme_today_link(date_text)
-
     print(f"Initial baseline: {'yes' if is_initial_run else 'no'}")
-    print(f"Collected links: {len(all_items)}")
+    print(f"Collected recent links: {len(all_items)}")
     print(f"New links: {0 if is_initial_run else len(new_items)}")
+    print(f"Max article age days: {MAX_ARTICLE_AGE_DAYS}")
     print(f"AI summary: {'enabled' if AI_SUMMARY_ENABLED else 'disabled'}")
     print(f"GitHub Models model: {GITHUB_MODELS_MODEL}")
 
