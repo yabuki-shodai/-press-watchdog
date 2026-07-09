@@ -1,7 +1,7 @@
 # -press-watchdog
 
 <!-- press-watchdog:today:start -->
-## Today's Report
+## 本日のレポート
 
 - [2026-07-09](docs/2026-07-09.md)
 <!-- press-watchdog:today:end -->
