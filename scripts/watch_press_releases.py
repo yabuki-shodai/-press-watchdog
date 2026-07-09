@@ -111,11 +111,11 @@ def load_config() -> dict[str, Any]:
         return yaml.safe_load(f)
 
 
-def load_seen() -> dict[str, Any]:
+def load_seen() -> tuple[dict[str, Any], bool]:
     if not SEEN_PATH.exists():
-        return {"seen_urls": {}}
+        return {"seen_urls": {}}, True
     with SEEN_PATH.open("r", encoding="utf-8") as f:
-        return json.load(f)
+        return json.load(f), False
 
 
 def save_seen(seen: dict[str, Any]) -> None:
@@ -260,14 +260,20 @@ def collect_links(config: dict[str, Any]) -> list[LinkItem]:
     return collected
 
 
-def build_markdown(date_text: str, new_items: list[LinkItem], all_count: int) -> str:
+def build_markdown(date_text: str, new_items: list[LinkItem], all_count: int, is_initial_run: bool) -> str:
     lines = [
         f"# Press release watch: {date_text}",
         "",
-        f"- New items: {len(new_items)}",
+        f"- Initial baseline: {'yes' if is_initial_run else 'no'}",
+        f"- New items: {0 if is_initial_run else len(new_items)}",
         f"- Collected links: {all_count}",
         "",
     ]
+
+    if is_initial_run:
+        lines.append("Initial baseline created. Existing links were saved to data/seen.json and are not reported as new items.")
+        lines.append("")
+        return "\n".join(lines)
 
     if not new_items:
         lines.append("No new press release links detected.")
@@ -290,27 +296,29 @@ def main() -> None:
     now = datetime.now(TIMEZONE)
     date_text = now.strftime("%Y-%m-%d")
     config = load_config()
-    seen = load_seen()
+    seen, is_initial_run = load_seen()
     seen_urls: dict[str, str] = seen.setdefault("seen_urls", {})
 
     all_items = collect_links(config)
     new_items: list[LinkItem] = []
 
     for item in all_items:
-        if item.url not in seen_urls:
+        if not is_initial_run and item.url not in seen_urls:
             new_items.append(item)
         seen_urls[item.url] = now.isoformat()
 
     seen["updated_at"] = now.isoformat()
     seen["source"] = "scripts/watch_press_releases.py"
+    seen["baseline_created_at"] = seen.get("baseline_created_at") or (now.isoformat() if is_initial_run else None)
     save_seen(seen)
 
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
-    markdown = build_markdown(date_text, new_items, len(all_items))
+    markdown = build_markdown(date_text, new_items, len(all_items), is_initial_run)
     (DOCS_DIR / f"{date_text}.md").write_text(markdown, encoding="utf-8")
 
+    print(f"Initial baseline: {'yes' if is_initial_run else 'no'}")
     print(f"Collected links: {len(all_items)}")
-    print(f"New links: {len(new_items)}")
+    print(f"New links: {0 if is_initial_run else len(new_items)}")
 
 
 if __name__ == "__main__":
