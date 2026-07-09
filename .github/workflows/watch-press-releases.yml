@@ -25,6 +25,11 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run watcher
+        env:
+          AI_SUMMARY_ENABLED: ${{ vars.AI_SUMMARY_ENABLED }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_API_URL: ${{ vars.AI_API_URL }}
+          AI_MODEL: ${{ vars.AI_MODEL }}
         run: python scripts/watch_press_releases.py
 
       - name: Commit changes
