@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  models: read
 
 jobs:
   watch:
@@ -26,10 +27,10 @@ jobs:
 
       - name: Run watcher
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           AI_SUMMARY_ENABLED: ${{ vars.AI_SUMMARY_ENABLED }}
-          AI_API_KEY: ${{ secrets.AI_API_KEY }}
-          AI_API_URL: ${{ vars.AI_API_URL }}
-          AI_MODEL: ${{ vars.AI_MODEL }}
+          GITHUB_MODELS_API_URL: ${{ vars.GITHUB_MODELS_API_URL }}
+          GITHUB_MODELS_MODEL: ${{ vars.GITHUB_MODELS_MODEL }}
         run: python scripts/watch_press_releases.py
 
       - name: Commit changes
