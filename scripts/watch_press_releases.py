@@ -55,6 +55,14 @@ DATE_PATTERNS = (
 )
 
 
+def ja_bool(value: bool) -> str:
+    return "はい" if value else "いいえ"
+
+
+def ja_enabled(value: bool) -> str:
+    return "有効" if value else "無効"
+
+
 @dataclass(frozen=True)
 class LinkItem:
     exchange_id: str
@@ -146,11 +154,7 @@ def extract_published_date(url: str, title: str) -> date | None:
         if not match:
             continue
         try:
-            return date(
-                int(match.group("year")),
-                int(match.group("month")),
-                int(match.group("day")),
-            )
+            return date(int(match.group("year")), int(match.group("month")), int(match.group("day")))
         except ValueError:
             continue
     return None
@@ -204,11 +208,11 @@ def fetch_html(url: str) -> str | None:
         )
         response.raise_for_status()
     except requests.RequestException as exc:
-        print(f"[warn] failed to fetch {url}: {exc}")
+        print(f"[warn] 取得失敗: {url}: {exc}")
         return None
     content_type = response.headers.get("content-type", "")
     if "text/html" not in content_type and "application/xhtml" not in content_type:
-        print(f"[warn] skipped non-html content {url}: {content_type}")
+        print(f"[warn] HTML以外のためスキップ: {url}: {content_type}")
         return None
     response.encoding = response.apparent_encoding or response.encoding
     return response.text
@@ -252,7 +256,7 @@ def generate_ai_summary(new_items: list[LinkItem], is_initial_run: bool) -> str 
     if is_initial_run or not new_items or not AI_SUMMARY_ENABLED:
         return None
     if not GITHUB_TOKEN:
-        print("[warn] AI_SUMMARY_ENABLED is true but GITHUB_TOKEN is not available")
+        print("[warn] AI要約が有効ですが、GITHUB_TOKEN が利用できません")
         return None
     input_lines = [f"- {item.exchange_name}: {item.title} ({item.url})" for item in new_items[:50]]
     prompt = "\n".join([
@@ -270,7 +274,7 @@ def generate_ai_summary(new_items: list[LinkItem], is_initial_run: bool) -> str 
             json={
                 "model": GITHUB_MODELS_MODEL,
                 "messages": [
-                    {"role": "system", "content": "You summarize crypto exchange press releases for monitoring. Be concise and factual."},
+                    {"role": "system", "content": "暗号資産交換業者のプレスリリース監視結果を、事実ベースで簡潔に日本語要約してください。"},
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.2,
@@ -280,7 +284,7 @@ def generate_ai_summary(new_items: list[LinkItem], is_initial_run: bool) -> str 
         response.raise_for_status()
         return response.json()["choices"][0]["message"]["content"].strip()
     except Exception as exc:
-        print(f"[warn] failed to generate AI summary with GitHub Models: {exc}")
+        print(f"[warn] GitHub Models によるAI要約に失敗しました: {exc}")
         return None
 
 
@@ -291,22 +295,22 @@ def build_item_line(item: LinkItem) -> str:
 
 def build_report(date_text: str, new_items: list[LinkItem], all_count: int, is_initial_run: bool, ai_summary: str | None) -> str:
     lines = [
-        f"# Press release watch: {date_text}",
+        f"# プレスリリース監視: {date_text}",
         "",
-        f"- Initial baseline: {'yes' if is_initial_run else 'no'}",
-        f"- New items: {0 if is_initial_run else len(new_items)}",
-        f"- Collected recent links: {all_count}",
-        f"- Max article age days: {MAX_ARTICLE_AGE_DAYS}",
-        f"- AI summary: {'enabled' if AI_SUMMARY_ENABLED else 'disabled'}",
+        f"- 初回ベースライン作成: {ja_bool(is_initial_run)}",
+        f"- 新規記事数: {0 if is_initial_run else len(new_items)}",
+        f"- 収集した直近記事数: {all_count}",
+        f"- 取得対象期間: 直近{MAX_ARTICLE_AGE_DAYS}日以内",
+        f"- AI要約: {ja_enabled(AI_SUMMARY_ENABLED)}",
         "",
     ]
     if ai_summary:
-        lines.extend(["## AI Summary", "", ai_summary, ""])
+        lines.extend(["## AI要約", "", ai_summary, ""])
     if is_initial_run:
-        lines.extend(["Initial baseline created. Existing recent links were saved to data/seen.json and are not reported as new items.", ""])
+        lines.extend(["初回実行のため、既存の直近記事は `data/seen.json` に保存し、新規記事としては表示していません。", ""])
         return "\n".join(lines)
     if not new_items:
-        lines.extend(["No new recent press release links detected.", ""])
+        lines.extend(["新規の直近プレスリリースはありません。", ""])
         return "\n".join(lines)
     current_exchange = None
     for item in new_items:
@@ -314,7 +318,7 @@ def build_report(date_text: str, new_items: list[LinkItem], all_count: int, is_i
             current_exchange = item.exchange_name
             lines.extend(["", f"## {current_exchange}", ""])
         lines.append(build_item_line(item))
-        lines.append(f"  - source: {item.source_url}")
+        lines.append(f"  - 取得元: {item.source_url}")
     lines.append("")
     return "\n".join(lines)
 
@@ -322,30 +326,30 @@ def build_report(date_text: str, new_items: list[LinkItem], all_count: int, is_i
 def build_summary(date_text: str, new_items: list[LinkItem], all_count: int, is_initial_run: bool, ai_summary: str | None) -> str:
     report_path = f"docs/{date_text}.md"
     lines = [
-        f"# Press release watch: {date_text}",
+        f"# プレスリリース監視: {date_text}",
         "",
-        f"- Report: [{report_path}]({report_path})",
-        f"- Initial baseline: {'yes' if is_initial_run else 'no'}",
-        f"- New items: {0 if is_initial_run else len(new_items)}",
-        f"- Collected recent links: {all_count}",
-        f"- Max article age days: {MAX_ARTICLE_AGE_DAYS}",
-        f"- AI summary: {'enabled' if AI_SUMMARY_ENABLED else 'disabled'}",
+        f"- レポート: [{report_path}]({report_path})",
+        f"- 初回ベースライン作成: {ja_bool(is_initial_run)}",
+        f"- 新規記事数: {0 if is_initial_run else len(new_items)}",
+        f"- 収集した直近記事数: {all_count}",
+        f"- 取得対象期間: 直近{MAX_ARTICLE_AGE_DAYS}日以内",
+        f"- AI要約: {ja_enabled(AI_SUMMARY_ENABLED)}",
         "",
     ]
     if ai_summary:
-        lines.extend(["## AI Summary", "", ai_summary, ""])
+        lines.extend(["## AI要約", "", ai_summary, ""])
     if is_initial_run:
-        lines.extend(["Initial baseline created. Existing recent links are not shown as new items.", ""])
+        lines.extend(["初回実行のため、既存の直近記事は新規記事として表示していません。", ""])
         return "\n".join(lines)
     if not new_items:
-        lines.extend(["No new recent press release links detected.", ""])
+        lines.extend(["新規の直近プレスリリースはありません。", ""])
         return "\n".join(lines)
-    lines.extend(["## New items", ""])
+    lines.extend(["## 新規記事", ""])
     for item in new_items[:20]:
         date_part = f"{item.published_date.isoformat()} " if item.published_date else ""
         lines.append(f"- **{item.exchange_name}**: [{date_part}{item.title}]({item.url})")
     if len(new_items) > 20:
-        lines.append(f"- ...and {len(new_items) - 20} more")
+        lines.append(f"- 他 {len(new_items) - 20} 件")
     lines.append("")
     return "\n".join(lines)
 
@@ -361,7 +365,7 @@ def write_github_step_summary(summary: str) -> None:
 
 def update_readme_today_link(date_text: str) -> None:
     report_path = f"docs/{date_text}.md"
-    block = "\n".join([README_START, "## Today's Report", "", f"- [{date_text}]({report_path})", README_END])
+    block = "\n".join([README_START, "## 本日のレポート", "", f"- [{date_text}]({report_path})", README_END])
     content = README_PATH.read_text(encoding="utf-8") if README_PATH.exists() else "# -press-watchdog\n"
     pattern = re.compile(f"{re.escape(README_START)}.*?{re.escape(README_END)}", re.DOTALL)
     if pattern.search(content):
@@ -397,11 +401,11 @@ def main() -> None:
     (DOCS_DIR / f"{date_text}.md").write_text(build_report(date_text, new_items, len(all_items), is_initial_run, ai_summary), encoding="utf-8")
     write_github_step_summary(build_summary(date_text, new_items, len(all_items), is_initial_run, ai_summary))
     update_readme_today_link(date_text)
-    print(f"Initial baseline: {'yes' if is_initial_run else 'no'}")
-    print(f"Collected recent links: {len(all_items)}")
-    print(f"New links: {0 if is_initial_run else len(new_items)}")
-    print(f"Max article age days: {MAX_ARTICLE_AGE_DAYS}")
-    print(f"AI summary: {'enabled' if AI_SUMMARY_ENABLED else 'disabled'}")
+    print(f"初回ベースライン作成: {ja_bool(is_initial_run)}")
+    print(f"収集した直近記事数: {len(all_items)}")
+    print(f"新規記事数: {0 if is_initial_run else len(new_items)}")
+    print(f"取得対象期間: 直近{MAX_ARTICLE_AGE_DAYS}日以内")
+    print(f"AI要約: {ja_enabled(AI_SUMMARY_ENABLED)}")
     print(f"GitHub Models model: {GITHUB_MODELS_MODEL}")
 
 
