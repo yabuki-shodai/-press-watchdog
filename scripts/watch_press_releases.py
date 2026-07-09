@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
@@ -16,10 +17,13 @@ ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "config" / "exchanges.yml"
 SEEN_PATH = ROOT / "data" / "seen.json"
 DOCS_DIR = ROOT / "docs"
+README_PATH = ROOT / "README.md"
 TIMEZONE = timezone(timedelta(hours=9))
 USER_AGENT = "press-watchdog/0.1 (+https://github.com/yabuki-shodai/-press-watchdog)"
 REQUEST_TIMEOUT = 20
 MAX_ITEMS_PER_SOURCE = 30
+README_START = "<!-- press-watchdog:today:start -->"
+README_END = "<!-- press-watchdog:today:end -->"
 
 IGNORE_HREF_PREFIXES = ("#", "mailto:", "tel:", "javascript:")
 
@@ -292,6 +296,77 @@ def build_markdown(date_text: str, new_items: list[LinkItem], all_count: int, is
     return "\n".join(lines)
 
 
+def build_summary(date_text: str, new_items: list[LinkItem], all_count: int, is_initial_run: bool) -> str:
+    report_path = f"docs/{date_text}.md"
+    lines = [
+        f"# Press release watch: {date_text}",
+        "",
+        f"- Report: [{report_path}]({report_path})",
+        f"- Initial baseline: {'yes' if is_initial_run else 'no'}",
+        f"- New items: {0 if is_initial_run else len(new_items)}",
+        f"- Collected links: {all_count}",
+        "",
+    ]
+
+    if is_initial_run:
+        lines.append("Initial baseline created. Existing links are not shown as new items.")
+        lines.append("")
+        return "\n".join(lines)
+
+    if not new_items:
+        lines.append("No new press release links detected.")
+        lines.append("")
+        return "\n".join(lines)
+
+    lines.append("## New items")
+    lines.append("")
+    for item in new_items[:20]:
+        lines.append(f"- **{item.exchange_name}**: [{item.title}]({item.url})")
+    if len(new_items) > 20:
+        lines.append(f"- ...and {len(new_items) - 20} more")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def write_github_step_summary(summary: str) -> None:
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary_path:
+        return
+    with open(summary_path, "a", encoding="utf-8") as f:
+        f.write(summary)
+        f.write("\n")
+
+
+def update_readme_today_link(date_text: str) -> None:
+    report_path = f"docs/{date_text}.md"
+    block = "\n".join(
+        [
+            README_START,
+            "## Today's Report",
+            "",
+            f"- [{date_text}]({report_path})",
+            README_END,
+        ]
+    )
+
+    if README_PATH.exists():
+        content = README_PATH.read_text(encoding="utf-8")
+    else:
+        content = "# -press-watchdog\n"
+
+    pattern = re.compile(f"{re.escape(README_START)}.*?{re.escape(README_END)}", re.DOTALL)
+    if pattern.search(content):
+        content = pattern.sub(block, content)
+    else:
+        lines = content.splitlines()
+        if lines and lines[0].startswith("# "):
+            content = "\n".join([lines[0], "", block, "", *lines[1:]])
+        else:
+            content = f"{block}\n\n{content}"
+
+    README_PATH.write_text(content.rstrip() + "\n", encoding="utf-8")
+
+
 def main() -> None:
     now = datetime.now(TIMEZONE)
     date_text = now.strftime("%Y-%m-%d")
@@ -315,6 +390,10 @@ def main() -> None:
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
     markdown = build_markdown(date_text, new_items, len(all_items), is_initial_run)
     (DOCS_DIR / f"{date_text}.md").write_text(markdown, encoding="utf-8")
+
+    summary = build_summary(date_text, new_items, len(all_items), is_initial_run)
+    write_github_step_summary(summary)
+    update_readme_today_link(date_text)
 
     print(f"Initial baseline: {'yes' if is_initial_run else 'no'}")
     print(f"Collected links: {len(all_items)}")
