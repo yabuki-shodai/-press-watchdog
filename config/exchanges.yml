@@ -1,0 +1,268 @@
+version: 1
+source:
+  name: 金融庁 暗号資産交換業者登録一覧
+  url: https://www.fsa.go.jp/menkyo/menkyoj/kasoutuka.pdf
+  checked_at: "2026-07-09"
+  source_date: "2026-06-30"
+  total_count: 26
+
+exchanges:
+  - id: money-partners
+    name: 株式会社マネーパートナーズ
+    service_name: マネーパートナーズ
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00001号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: custodiem
+    name: 株式会社Custodiem
+    service_name: Custodiem
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00002号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: bitflyer
+    name: 株式会社bitFlyer
+    service_name: bitFlyer
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00003号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: bitbank
+    name: ビットバンク株式会社
+    service_name: bitbank
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00004号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: gmo-coin
+    name: GMOコイン株式会社
+    service_name: GMOコイン
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00006号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: bittrade
+    name: ビットトレード株式会社
+    service_name: BitTrade
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00007号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: btcbox
+    name: BTCボックス株式会社
+    service_name: BTCBOX
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00008号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: sbi-vc-trade
+    name: SBI VCトレード株式会社
+    service_name: SBI VCトレード
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00011号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: finx-jcrypto
+    name: FINX JCrypto株式会社
+    service_name: FINX JCrypto
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00012号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: coinhub
+    name: COINHUB株式会社
+    service_name: COINHUB
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00013号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: coincheck
+    name: コインチェック株式会社
+    service_name: Coincheck
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00014号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: rakuten-wallet
+    name: 楽天ウォレット株式会社
+    service_name: 楽天ウォレット
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00015号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: sblox
+    name: S.BLOX株式会社
+    service_name: S.BLOX
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00016号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: gate-japan
+    name: Gate Japan株式会社
+    service_name: Gate Japan
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00018号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: okcoin-japan
+    name: オーケーコイン・ジャパン株式会社
+    service_name: OKJ
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00020号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: osl-japan
+    name: OSL Japan株式会社
+    service_name: OSL Japan
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00023号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: digital-asset-markets
+    name: 株式会社デジタルアセットマーケッツ
+    service_name: デジタルアセットマーケッツ
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00024号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: mercury
+    name: 株式会社マーキュリー
+    service_name: CoinTrade
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00025号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: backseat
+    name: BACKSEAT暗号資産交換業株式会社
+    service_name: BACKSEAT
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00026号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: hashkey-japan
+    name: HashKey Japan株式会社
+    service_name: HashKey Japan
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00027号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: coinbase-japan
+    name: Coinbase株式会社
+    service_name: Coinbase Japan
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00028号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: crypto-garage
+    name: 株式会社Crypto Garage
+    service_name: Crypto Garage
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00029号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: mercoin
+    name: 株式会社メルコイン
+    service_name: メルコイン
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00030号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: binance-japan
+    name: Binance Japan株式会社
+    service_name: Binance Japan
+    bureau: 関東財務局
+    registration_number: 関東財務局長 第00031号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: zaif
+    name: 株式会社Zaif
+    service_name: Zaif
+    bureau: 近畿財務局
+    registration_number: 近畿財務局長 第00001号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
+
+  - id: gaia
+    name: 株式会社ガイア
+    service_name: ガイア
+    bureau: 近畿財務局
+    registration_number: 近畿財務局長 第00004号
+    enabled: true
+    website_url: null
+    press_urls: []
+    rss_urls: []
