@@ -19,19 +19,19 @@ DOCS_DIR = ROOT / "docs"
 TIMEZONE = timezone(timedelta(hours=9))
 USER_AGENT = "press-watchdog/0.1 (+https://github.com/yabuki-shodai/-press-watchdog)"
 REQUEST_TIMEOUT = 20
+MAX_ITEMS_PER_SOURCE = 30
 
 IGNORE_HREF_PREFIXES = ("#", "mailto:", "tel:", "javascript:")
-KEYWORDS = (
+
+ARTICLE_KEYWORDS = (
     "news",
     "info",
     "notice",
     "press",
     "release",
     "announcement",
-    "campaign",
     "maintenance",
     "important",
-    "support",
     "お知らせ",
     "ニュース",
     "プレス",
@@ -41,7 +41,59 @@ KEYWORDS = (
     "重要",
     "取扱",
     "上場",
-    "暗号資産",
+)
+
+NAVIGATION_KEYWORDS = (
+    "一覧",
+    "カテゴリ",
+    "タグ",
+    "キャンペーン一覧",
+    "ニュース一覧",
+    "お知らせ一覧",
+    "メンテナンス情報",
+    "報道関係者",
+    "用語集",
+    "暗号資産とは",
+    "取扱暗号資産",
+    "キャンペーン",
+    "next",
+    "次へ",
+    "prev",
+    "previous",
+    "back",
+    "more",
+    "news",
+    "info",
+)
+
+EXCLUDED_PATH_PARTS = (
+    "/login",
+    "/signup",
+    "/register",
+    "/contact",
+    "/privacy",
+    "/terms",
+    "/policy",
+    "/about/press",
+    "/campaign",
+    "/campaigns",
+    "/guide",
+    "/knowledge",
+    "/columns",
+    "/services/",
+    "/crypto-assets/",
+    "/tag/",
+    "/tags/",
+    "/category/",
+    "/categories/",
+    "/page/",
+)
+
+DATE_PATTERNS = (
+    re.compile(r"/20\d{2}[/-]?\d{2}[/-]?\d{2}(?:\D|$)"),
+    re.compile(r"/20\d{6}(?:\D|$)"),
+    re.compile(r"\b20\d{2}[./-]\d{1,2}[./-]\d{1,2}\b"),
+    re.compile(r"\b20\d{2}\s*/\s*\d{1,2}\s*/\s*\d{1,2}\b"),
 )
 
 
@@ -84,18 +136,62 @@ def normalize_url(url: str) -> str:
     return normalized.rstrip("/")
 
 
-def is_probably_article(url: str, title: str) -> bool:
-    parsed = urlparse(url)
-    path = parsed.path.lower()
+def same_site_or_subdomain(candidate_url: str, source_url: str) -> bool:
+    candidate_host = urlparse(candidate_url).hostname or ""
+    source_host = urlparse(source_url).hostname or ""
+    if not candidate_host or not source_host:
+        return False
+    return candidate_host == source_host or candidate_host.endswith(f".{source_host}") or source_host.endswith(f".{candidate_host}")
+
+
+def has_date_signal(url: str, title: str) -> bool:
+    target = f"{url} {title}"
+    return any(pattern.search(target) for pattern in DATE_PATTERNS)
+
+
+def has_article_keyword(url: str, title: str) -> bool:
+    path = urlparse(url).path.lower()
     title_lower = title.lower()
+    return any(keyword.lower() in path or keyword.lower() in title_lower for keyword in ARTICLE_KEYWORDS)
+
+
+def is_navigation_link(url: str, title: str) -> bool:
+    parsed = urlparse(url)
+    path = parsed.path.lower().rstrip("/")
+    title_lower = title.lower()
+
+    if any(part in path for part in EXCLUDED_PATH_PARTS):
+        return True
+    if any(title_lower == keyword.lower() for keyword in NAVIGATION_KEYWORDS):
+        return True
+    if re.search(r"/(news|info|notice|announcement|press|release)$", path):
+        return True
+    return False
+
+
+def is_probably_article(url: str, title: str, source_url: str) -> bool:
+    parsed = urlparse(url)
 
     if not parsed.scheme.startswith("http"):
         return False
-    if any(part in path for part in ("/login", "/signup", "/register", "/contact", "/privacy", "/terms")):
+    if not same_site_or_subdomain(url, source_url):
         return False
-    if len(title) < 4:
+    if len(title) < 6:
         return False
-    return any(keyword.lower() in path or keyword.lower() in title_lower for keyword in KEYWORDS)
+    if is_navigation_link(url, title):
+        return False
+
+    # A date in the URL or title is the strongest general signal for Japanese release pages.
+    if has_date_signal(url, title):
+        return True
+
+    # Some services use opaque IDs such as /newsview/abc123. Keep those only when the
+    # title clearly looks like an actual announcement, not a navigation label.
+    path = parsed.path.lower()
+    if any(part in path for part in ("/newsview/", "/news/", "/info/", "/announcement/")):
+        return has_article_keyword(url, title) and len(title) >= 12
+
+    return False
 
 
 def fetch_html(url: str) -> str | None:
@@ -114,6 +210,8 @@ def fetch_html(url: str) -> str | None:
     if "text/html" not in content_type and "application/xhtml" not in content_type:
         print(f"[warn] skipped non-html content {url}: {content_type}")
         return None
+
+    response.encoding = response.apparent_encoding or response.encoding
     return response.text
 
 
@@ -135,7 +233,7 @@ def extract_links(exchange: dict[str, Any], source_url: str) -> list[LinkItem]:
         absolute_url = normalize_url(urljoin(source_url, href))
         if absolute_url in seen_urls:
             continue
-        if not is_probably_article(absolute_url, title):
+        if not is_probably_article(absolute_url, title, source_url):
             continue
 
         seen_urls.add(absolute_url)
@@ -149,7 +247,7 @@ def extract_links(exchange: dict[str, Any], source_url: str) -> list[LinkItem]:
             )
         )
 
-    return items[:30]
+    return items[:MAX_ITEMS_PER_SOURCE]
 
 
 def collect_links(config: dict[str, Any]) -> list[LinkItem]:
