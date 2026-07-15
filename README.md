@@ -3,7 +3,7 @@
 <!-- press-watchdog:today:start -->
 ## 本日のレポート
 
-- [2026-07-14](docs/2026-07-14.md)
+- [2026-07-15](docs/2026-07-15.md)
 <!-- press-watchdog:today:end -->
 
 ## Overview
