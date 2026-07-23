@@ -89,6 +89,7 @@
     "https://www.sbivc.co.jp/newsview/5r2hwiunz": "2026-07-14T11:55:06.540354+09:00",
     "https://www.sbivc.co.jp/newsview/8gqb3kuje6s": "2026-07-09T19:02:51.627780+09:00",
     "https://www.sbivc.co.jp/newsview/9wn-nmceinsv": "2026-07-09T19:02:51.627780+09:00",
+    "https://www.sbivc.co.jp/newsview/b8d7d5_n0": "2026-07-23T12:26:33.239259+09:00",
     "https://www.sbivc.co.jp/newsview/bsqs09vn_yzv": "2026-07-09T19:02:51.627780+09:00",
     "https://www.sbivc.co.jp/newsview/dobf8h87nw": "2026-07-20T12:41:09.320554+09:00",
     "https://www.sbivc.co.jp/newsview/dv23v1me5w7b": "2026-07-09T19:02:51.627780+09:00",
@@ -106,7 +107,7 @@
     "https://www.sbivc.co.jp/newsview/maintenance_20260701": "2026-07-09T19:02:51.627780+09:00",
     "https://www.sbivc.co.jp/newsview/maintenance_20260708": "2026-07-14T11:55:06.540354+09:00",
     "https://www.sbivc.co.jp/newsview/maintenance_20260715": "2026-07-20T12:41:09.320554+09:00",
-    "https://www.sbivc.co.jp/newsview/maintenance_20260722": "2026-07-22T12:19:20.607211+09:00",
+    "https://www.sbivc.co.jp/newsview/maintenance_20260722": "2026-07-23T12:26:33.239259+09:00",
     "https://www.sbivc.co.jp/newsview/mbvmt64me8": "2026-07-09T19:02:51.627780+09:00",
     "https://www.sbivc.co.jp/newsview/nmo4pco4t6f": "2026-07-09T19:02:51.627780+09:00",
     "https://www.sbivc.co.jp/newsview/qdzf57s7n7": "2026-07-09T19:02:51.627780+09:00",
@@ -114,7 +115,7 @@
     "https://www.sbivc.co.jp/newsview/sl5f2ve6hiw": "2026-07-09T19:02:51.627780+09:00",
     "https://www.sbivc.co.jp/newsview/snbw0scqu": "2026-07-09T19:02:51.627780+09:00",
     "https://www.sbivc.co.jp/newsview/td16tebg9b-8": "2026-07-17T12:18:26.282546+09:00",
-    "https://www.sbivc.co.jp/newsview/uu9p3ntuxk": "2026-07-22T12:19:20.607211+09:00",
+    "https://www.sbivc.co.jp/newsview/uu9p3ntuxk": "2026-07-23T12:26:33.239259+09:00",
     "https://www.sbivc.co.jp/newsview/v03cnuety-h2": "2026-07-09T19:02:51.627780+09:00",
     "https://www.sbivc.co.jp/newsview/wb86aohw8": "2026-07-22T12:19:20.607211+09:00",
     "https://www.sbivc.co.jp/newsview/wtfnt8lco": "2026-07-09T19:02:51.627780+09:00",
@@ -124,5 +125,5 @@
     "https://www.sbivc.co.jp/services/handling-electronic-payment": "2026-07-09T18:31:37.263018+09:00"
   },
   "source": "scripts/watch_press_releases.py",
-  "updated_at": "2026-07-22T12:19:20.607211+09:00"
+  "updated_at": "2026-07-23T12:26:33.239259+09:00"
 }
